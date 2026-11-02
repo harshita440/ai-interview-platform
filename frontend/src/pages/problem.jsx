@@ -1,38 +1,31 @@
+
 import { useLocation } from "react-router-dom";
 import { useState } from "react";
+
 function Problem() {
     const location = useLocation();
     const problem = location.state?.problem;
+
     const [solution, setSolution] = useState("");
     const [result, setResult] = useState(null);
+    const [loading, setLoading] = useState(false);
+
     if (!problem) {
         return <h2>Problem not found</h2>;
     }
-    return (
-        <div className="container mt-5">
-            <h2>{problem.title}</h2>
-            <p>
-                <strong>Topic:</strong> {problem.topic}
-            </p>
-            <p>
-                <strong>Difficulty:</strong> {problem.difficulty}
-            </p>
-            <hr />
-            <h4>Problem Description</h4>
-            <p>{problem.description}</p>
-            <textarea
-                className="form-control"
-                rows="10"
-                placeholder="Write your solution here..."
-                value={solution}
-                onChange={(e) => setSolution(e.target.value)}>
-</textarea>
-<button
-    className="btn btn-success mt-3"
-    onClick={async () => {
+
+    const submitSolution = async () => {
+        if (!solution.trim()) {
+            alert("Please enter your solution first.");
+            return;
+        }
+
+        setLoading(true);
+        setResult(null);
+
         try {
             const response = await fetch(
-                "http://127.0.0.1:8000/submit-solution",
+                "http://127.0.0.1:8000/evaluate-solution",
                 {
                     method: "POST",
                     headers: {
@@ -40,14 +33,16 @@ function Problem() {
                     },
                     body: JSON.stringify({
                         problem_id: problem.id,
-                        solution: solution,
+                        code: solution,
                     }),
                 }
             );
 
             const data = await response.json();
 
-            console.log(data);
+            if (!response.ok) {
+                throw new Error(data.detail || "Evaluation failed.");
+            }
 
             setResult(data);
 
@@ -55,23 +50,113 @@ function Problem() {
             console.error("Error submitting solution:", error);
 
             setResult({
-                status: "error",
-                message: "Could not connect to the backend."
+                correct: false,
+                score: 0,
+                feedback: error.message || "Could not connect to backend.",
             });
-        }
-    }}
->
-    Submit Solution
-</button>
 
-{result && (
-    <div className="alert alert-info mt-3">
-        <strong>{result.status}</strong>
-        <br />
-        {result.message}
-    </div>
-)}
-</div>
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="container mt-5">
+
+            <h2>{problem.title}</h2>
+
+            <p>
+                <strong>Topic:</strong> {problem.topic}
+            </p>
+
+            <p>
+                <strong>Difficulty:</strong> {problem.difficulty}
+            </p>
+
+            <hr />
+
+            <h4>Problem Description</h4>
+            <p>{problem.description}</p>
+
+            <h4>Your Solution</h4>
+
+            <textarea
+                className="form-control"
+                rows="10"
+                placeholder="Write your Python solution here..."
+                value={solution}
+                onChange={(e) => setSolution(e.target.value)}
+            />
+
+            <button
+                className="btn btn-success mt-3"
+                onClick={submitSolution}
+                disabled={loading}
+            >
+                {loading ? "Evaluating..." : "Submit Solution"}
+            </button>
+
+            {result && (
+                <div className="card shadow mt-4 p-4">
+
+                    <h3>
+                        {result.correct
+                            ? "✅ Accepted"
+                            : "❌ Wrong Answer"}
+                    </h3>
+
+                    <h2>Score: {result.score}/100</h2>
+
+                    <p>{result.feedback}</p>
+
+                    {result.results && (
+                        <>
+                            <h4 className="mt-4">
+                                Test Case Results
+                            </h4>
+
+                            {result.results.map((test, index) => (
+                                <div
+                                    key={index}
+                                    className="border rounded p-3 mb-3"
+                                >
+                                    <h5>
+                                        Test Case {index + 1}{" "}
+                                        {test.passed
+                                            ? "✅ Passed"
+                                            : "❌ Failed"}
+                                    </h5>
+
+                                    <p>
+                                        <strong>Expected:</strong>{" "}
+                                        {JSON.stringify(
+                                            test.expected ?? "Not available"
+                                        )}
+                                    </p>
+
+                                    <p>
+                                        <strong>Actual:</strong>{" "}
+                                        {JSON.stringify(
+                                            test.actual ?? "Not available"
+                                        )}
+                                    </p>
+
+                                    {test.error && (
+                                        <p className="text-danger">
+                                            <strong>Error:</strong>{" "}
+                                            {test.error}
+                                        </p>
+                                    )}
+                                </div>
+                            ))}
+                        </>
+                    )}
+
+                </div>
+            )}
+
+        </div>
     );
 }
+
 export default Problem;

@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from evaluator import evaluate_code
+from test_cases import TEST_CASES
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
@@ -70,7 +72,7 @@ def get_problems():
             }
         ]
     }
-def evaluate_solution(problem_id, solution):
+def evaluate_keyword_solution(problem_id, solution):
     solution_lower = solution.lower()
 
     if problem_id == 1:
@@ -113,12 +115,56 @@ def submit_solution(request: SolutionRequest):
             "message": "Solution cannot be empty."
         }
 
-    result = evaluate_solution(
-        request.problem_id,
-        request.solution
-    )
+    result = evaluate_keyword_solution(
+    request.problem_id,
+    request.solution
+)
 
     return {
         "problem_id": request.problem_id,
         **result
     }
+class EvaluationRequest(BaseModel):
+    problem_id: int
+    code: str
+
+
+
+@app.post("/evaluate-solution")
+def evaluate_solution(request: EvaluationRequest):
+
+    if not request.code.strip():
+        return {
+            "correct": False,
+            "score": 0,
+            "feedback": "Please submit your code."
+        }
+
+    if request.problem_id not in TEST_CASES:
+        return {
+            "correct": False,
+            "score": 0,
+            "feedback": "Test cases are not available for this problem yet."
+        }
+
+    evaluation = evaluate_code(
+        request.code,
+        TEST_CASES[request.problem_id]
+    )
+
+    correct = evaluation["passed"] == evaluation["total"]
+
+    return {
+        "correct": correct,
+        "score": evaluation["score"],
+        "passed": evaluation["passed"],
+        "total": evaluation["total"],
+        "feedback": (
+            "Excellent! All test cases passed."
+            if correct
+            else "Some test cases failed. Review your solution."
+        ),
+        "results": evaluation["results"]
+    }
+
+
