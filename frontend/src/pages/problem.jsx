@@ -1,4 +1,4 @@
-
+import Editor from "@monaco-editor/react";
 import { useLocation } from "react-router-dom";
 import { useState } from "react";
 
@@ -9,6 +9,7 @@ function Problem() {
     const [solution, setSolution] = useState("");
     const [result, setResult] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [language, setLanguage] = useState("python");
 
     if (!problem) {
         return <h2>Problem not found</h2>;
@@ -19,6 +20,10 @@ function Problem() {
             alert("Please enter your solution first.");
             return;
         }
+        if (language !== "python") {
+    alert("Code execution is currently available only for Python.");
+    return;
+}
 
         setLoading(true);
         setResult(null);
@@ -78,15 +83,48 @@ function Problem() {
             <h4>Problem Description</h4>
             <p>{problem.description}</p>
 
-            <h4>Your Solution</h4>
+            <div className="d-flex justify-content-between align-items-center mt-4 mb-2">
+    <h4>Your Solution</h4>
 
-            <textarea
-                className="form-control"
-                rows="10"
-                placeholder="Write your Python solution here..."
-                value={solution}
-                onChange={(e) => setSolution(e.target.value)}
-            />
+    <select
+        className="form-select w-auto"
+        value={language}
+        onChange={(e) => setLanguage(e.target.value)}
+    >
+        <option value="python">Python</option>
+        <option value="javascript">JavaScript</option>
+        <option value="java">Java</option>
+        <option value="cpp">C++</option>
+    </select>
+</div>
+
+            <div className="border rounded mt-3 overflow-hidden">
+                {language === "python" ? (
+    <div className="alert alert-success py-2">
+        Python execution is available.
+    </div>
+) : (
+    <div className="alert alert-warning py-2">
+        Editor support is available, but code execution for this language is coming soon.
+    </div>
+)}
+    <Editor
+        height="400px"
+        language={language}
+        theme="vs-dark"
+        value={solution}
+        onChange={(value) => setSolution(value || "")}
+        options={{
+            minimap: { enabled: false },
+            fontSize: 14,
+            lineNumbers: "on",
+            automaticLayout: true,
+            scrollBeyondLastLine: false,
+            tabSize: 4,
+            wordWrap: "on",
+        }}
+    />
+</div>
 
             <button
                 className="btn btn-success mt-3"
